@@ -5,57 +5,65 @@ import java.util.regex.Pattern;
 
 public class PhoneBook {
 
-    private Map<String, List<String>> storage = new HashMap<>();
+    private Map<String, Set<String>> storage = new HashMap<>();
     private Pattern phonePattern = Pattern.compile("((\\+\\d+)?\\(?\\d{3,4}\\)?\\d{3}-?\\d{2}-?\\d{2})|(\\*\\d+#)");
+    // Этот паттерн пропускает номера телеонов следующих видов:
+    // +7(999)999-99-99 (различные вариации с - / () и без них)
+    // *999999#
 
-    public void addPerson(String personName, List<String> phones) {
+    public boolean addPerson(String personName, Set<String> phones) {
+        if (storage.containsKey(personName)) return false;
+        // Проверяем, что человека еще нет в телефонной книге
         for (String phone : phones) {
-            if (!phonePattern.matcher(phone).matches()) throw new IllegalArgumentException("Invalid phone");
+            if (!phonePattern.matcher(phone).matches()) return false;
+            // Проверяем, что все телефоны корректны
         }
         storage.put(personName, phones);
+        return true;
     }
 
-    public void addPhone(String personName, String phone) {
-        if (!phonePattern.matcher(phone).matches()) throw new IllegalArgumentException("Invalid phone");
-        if (!storage.keySet().contains(personName)) throw new IllegalArgumentException("Person not find");
-        List<String> personPhones = new ArrayList<>(storage.get(personName));
-        personPhones.add(phone);
-        storage.put(personName, personPhones);
+    public boolean addPhone(String personName, String phone) {
+        if (!phonePattern.matcher(phone).matches() || !storage.keySet().contains(personName)) return false;
+        // Проверяем, что человек есть в телефонной книге, а так же, что телефон корректен
+        this.storage.get(personName).add(phone);
+        return true;
     }
 
-    public void removePerson(String personName) {
-        if (!storage.keySet().contains(personName)) throw new IllegalArgumentException("Person not find");
+    public boolean removePerson(String personName) {
+        if (!storage.keySet().contains(personName)) return false;
         storage.remove(personName);
+        return true;
     }
 
-    public void removePhone(String personName, String phone) {
-        if (!storage.keySet().contains(personName)) throw new IllegalArgumentException("Person not find");
-        if (!storage.get(personName).contains(phone)) throw new IllegalArgumentException("Phone not find");
-        List<String> phones = new ArrayList<>(storage.get(personName));
-        phones.remove(phone);
-        storage.put(personName, phones);
+    public boolean removePhone(String personName, String phone) {
+        if (!storage.keySet().contains(personName) || !storage.get(personName).contains(phone)) return false;
+        storage.get(personName).remove(phone);
+        return true;
     }
 
-    public List<String> findOfPersonName(String personNameForFind) {
+    public Set<String> findOfPersonName(String personNameForFind) {
         if (!storage.keySet().contains(personNameForFind)) throw new IllegalArgumentException("Person not find");
         return storage.get(personNameForFind);
     }
 
     public List<String> findOfPhone(String phoneForFind) {
         List<String> resultFind = new ArrayList<>();
-        for (Map.Entry<String, List<String>> person : storage.entrySet()) {
-            for (String phone : person.getValue()) {
+        storage.forEach((String person, Set<String> phones) -> {
+            // Перебираем одновременно и людей и их телефонные номера
+            for (String phone : phones) {
+                // Перебираем телефонные номера у конкретного человека
                 if (phone.equals(phoneForFind)) {
-                    resultFind.add(person.getKey());
+                    // Если нашли -- добавляем человека в результат и выходим из внутреннего цикла
+                    resultFind.add(person);
                     break;
                 }
             }
-        }
+        });
         if (resultFind.isEmpty()) throw new IllegalArgumentException("Phone not find");
         return resultFind;
     }
 
-    public Map<String, List<String>> getStorage() {
+    public Map<String, Set<String>> getStorage() {
         return storage;
     }
 
@@ -64,7 +72,7 @@ public class PhoneBook {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         PhoneBook phoneBook = (PhoneBook) o;
-        return storage == phoneBook.storage;
+        return storage.equals(phoneBook.storage);
     }
 
     @Override
@@ -75,12 +83,13 @@ public class PhoneBook {
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();
-        for (Map.Entry<String, List<String>> person : storage.entrySet()) {
+        storage.forEach((String person, Set<String> phones) -> {
             result
-                    .append(person.getKey()).append(": ")
-                    .append(person.getValue().toString().replaceAll("(\\[|\\])", ""))
+                    .append(person).append(": ")
+                    .append(phones.toString().replaceAll("(\\[|\\])", ""))
+                    // Удаляем из строкового представления все []
                     .append("\n");
-        }
+        });
         return result.toString();
     }
 }
